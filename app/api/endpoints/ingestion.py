@@ -9,10 +9,7 @@ router = APIRouter()
 
 
 @router.post("/ingest", response_model=IngestResponse)
-async def ingest_documents(
-    files: List[UploadFile] = File(...), 
-    source: Optional[str] = Form(None)
-):
+async def ingest_documents(files: List[UploadFile] = File(...), source: Optional[str] = Form(None)):
     final_source = source if source else "public"
     all_texts = []
 
