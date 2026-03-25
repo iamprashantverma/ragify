@@ -4,8 +4,8 @@ from typing import List, Dict, Optional
 
 class QueryRequest(BaseModel):
     query: str
-    top_k: int = 5
-    retrieval_top_k: int = 20
+    top_k: int = 3
+    retrieval_top_k: int = 10
     source: Optional[str] = Field(default=None, description="Source to filter by")
 
 

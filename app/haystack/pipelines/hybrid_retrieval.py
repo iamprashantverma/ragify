@@ -64,7 +64,7 @@ Output format:
    - Missing Information:>
 """
 
-def create_hybrid_pipeline(top_k: int = 10, retrieval_top_k: int = 30):
+def create_hybrid_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
    hybrid_retrieval = Pipeline()
 
    hybrid_retrieval.add_component("text_embedder", get_text_embedder())
@@ -91,7 +91,7 @@ def create_hybrid_pipeline(top_k: int = 10, retrieval_top_k: int = 30):
 
 _pipeline = None
 
-def get_hybrid_pipeline(top_k: int = 5, retrieval_top_k: int = 20):
+def get_hybrid_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
    global _pipeline
    if _pipeline is None:
        _pipeline = create_hybrid_pipeline(top_k=top_k, retrieval_top_k=retrieval_top_k)
