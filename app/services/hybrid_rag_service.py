@@ -1,24 +1,13 @@
-from typing import Dict, Optional
-from app.haystack.pipelines.hybrid_retrieval import get_hybrid_pipeline
-from app.services.chat_history_service import add_to_history, get_history, format_history_for_context
+from typing import Dict, Optional, List
+from haystack.dataclasses import ChatRole
+from app.haystack.pipelines.chat_retrieval import get_chat_retrieval_pipeline
+from app.services.chat_history_service import get_chat_store
 
 
-def retrieve_and_generate_hybrid(
-    query: str,
-    user_id: str, 
-    source: Optional[str] = None, 
-    top_k: int = 10, 
-    retrieval_top_k: int = 30
-) -> Dict:
-    hybrid_pipeline = get_hybrid_pipeline(top_k=top_k, retrieval_top_k=retrieval_top_k)
+def retrieve_and_generate_hybrid(query: str,user_id: str, source: Optional[str] = None, top_k: int = 3, retrieval_top_k: int = 30) -> Dict:
+    pipeline = get_chat_retrieval_pipeline(top_k=top_k, retrieval_top_k=retrieval_top_k)
 
-    # Get chat history context
-    history_context = format_history_for_context(user_id, limit=3)
-    
-    # Enhance query with history context if available
-    enhanced_query = query
-    if history_context:
-        enhanced_query = f"{history_context}\nCurrent query: {query}"
+    chat_history_id = f"user_{user_id}_session"
 
     filters = None
     if source and source.strip():
@@ -29,39 +18,55 @@ def retrieve_and_generate_hybrid(
         }
 
     run_data = {
-        "text_embedder": {"text": enhanced_query},
-        "bm25_retriever": {"query": enhanced_query},
-        "ranker":         {"query": query},  # Use original query for ranking
+        "text_embedder": {"text": query},
+        "bm25_retriever": {"query": query},
+        "ranker": {"query": query},
+        "prompt_builder": {"query": query},
+        "message_retriever": {"chat_history_id": chat_history_id},
+        "message_writer": {"chat_history_id": chat_history_id},
     }
 
     if filters:
         run_data["embedding_retriever"] = {"filters": filters}
         run_data["bm25_retriever"]["filters"] = filters
 
-    result = hybrid_pipeline.run(data=run_data, include_outputs_from=["ranker"])
+    result = pipeline.run(
+        data=run_data,
+        include_outputs_from=["ranker", "llm", "message_retriever"]
+    )
 
     documents = result.get("ranker", {}).get("documents", [])
-    
-    # Format response summary for history
-    response_summary = f"Found {len(documents)} relevant documents"
-    if documents:
-        response_summary += f". Top result: {documents[0].content[:100]}..."
-    
-    # Add to chat history
-    add_to_history(user_id, query, response_summary)
-    
-    # Get updated history
-    chat_history = get_history(user_id, limit=5)
+    replies = result.get("llm", {}).get("replies", [])
+    answer = replies[0].text if replies else "No answer generated"
+
+
+    history_messages = result.get("message_retriever", {}).get("messages", [])
+    print(f"DEBUG: Retrieved {len(history_messages)} messages from history for {chat_history_id}")
+
+
+    store = get_chat_store()
+    all_messages = store.retrieve_messages(chat_history_id)
+    print(f"DEBUG: Store has {len(all_messages)} total messages for {chat_history_id}")
+
+
+    user_msgs = [m for m in history_messages if m.role == ChatRole.USER]
+    asst_msgs = [m for m in history_messages if m.role == ChatRole.ASSISTANT]
+
+    chat_history = [
+        {"query": u.text, "response": a.text}
+        for u, a in zip(user_msgs, asst_msgs)
+    ]
 
     return {
         "query": query,
+        "answer": answer,
         "retrieved_documents": [
             {
-                "content":  doc.content,
-                "score":    getattr(doc, "score", None),
+                "content": doc.content,
+                "score": getattr(doc, "score", None),
                 "metadata": getattr(doc, "meta", {}),
             }
             for doc in documents
         ],
-        "chat_history": chat_history
+        "chat_history": chat_history[-5:] 
     }
