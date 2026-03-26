@@ -12,6 +12,7 @@ async def query_documents(request: QueryRequest):
 
     result = retrieve_and_generate_hybrid(
         request.query,
+        request.user_id,
         request.source,
         request.top_k,
         request.retrieval_top_k,

@@ -95,6 +95,7 @@ def get_hybrid_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
    global _pipeline
    if _pipeline is None:
        _pipeline = create_hybrid_pipeline(top_k=top_k, retrieval_top_k=retrieval_top_k)
+       _pipeline.show()
        _pipeline.warm_up()
    return _pipeline
 
