@@ -21,7 +21,7 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
 
     pipeline = Pipeline()
 
-    # --- RAG components ---
+    # RAG components 
     pipeline.add_component("text_embedder", get_text_embedder())
     pipeline.add_component("embedding_retriever", get_dense_retriever(top_k=retrieval_top_k))
     pipeline.add_component("bm25_retriever", get_bm25_retriever(top_k=retrieval_top_k))
@@ -119,9 +119,7 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
     ),
 )
 
-    # --- Memory components ---
-    # message_retriever fetches stored history and PREPENDS it before the
-    # current prompt messages, giving the LLM full multi-turn context natively.
+    # Memory components 
     pipeline.add_component("message_retriever", ChatMessageRetriever(message_store))
     pipeline.add_component("message_writer", ChatMessageWriter(message_store))
 
@@ -135,7 +133,7 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
         ),
     )
 
-    # --- LLM ---
+    # LLM 
     pipeline.add_component(
         "llm",
         OpenAIChatGenerator(
@@ -145,16 +143,16 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
         )
     )
 
-    # --- RAG connections ---
+    # RAG connections
     pipeline.connect("text_embedder.embedding", "embedding_retriever.query_embedding")
     pipeline.connect("embedding_retriever", "document_joiner")
     pipeline.connect("bm25_retriever", "document_joiner")
     pipeline.connect("document_joiner", "ranker.documents")
     pipeline.connect("ranker.documents", "prompt_builder.documents")
 
-    # --- Memory connections ---
+    # Memory connections
     # prompt_builder produces the current turn's messages (system + user).
-    # message_retriever prepends stored history → full message list → llm.
+    # message_retriever prepends stored history -> full message list -> llm.
     pipeline.connect("prompt_builder.prompt", "message_retriever.current_messages")
     pipeline.connect("message_retriever.messages", "llm.messages")
 
@@ -176,24 +174,3 @@ def get_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
         _pipeline.warm_up()
     return _pipeline
 
-
-def run_pipeline(query: str, pipeline=None) -> str:
-    """
-    Convenience wrapper. Call this instead of pipeline.run() directly
-    to ensure all required inputs are wired correctly.
-    """
-    if pipeline is None:
-        pipeline = get_chat_retrieval_pipeline()
-
-    result = pipeline.run(
-        {
-            "text_embedder": {"text": query},
-            "bm25_retriever": {"query": query},
-            "prompt_builder": {"query": query},
-            # NOTE: Do NOT pass "history" here.
-            # message_retriever fetches it from the store automatically.
-        }
-    )
-
-    replies = result["llm"]["replies"]
-    return replies[0].content if replies else ""
