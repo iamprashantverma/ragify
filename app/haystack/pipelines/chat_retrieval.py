@@ -53,8 +53,8 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
                 "- If documents and history CONFLICT → always prefer documents, and note the conflict.\n\n"
 
                 "### Combining Both\n"
-                "- Use history to understand WHAT is being asked.\n"
-                "- Use documents to determine WHAT the answer is.\n"
+                "- Use history and query to understand WHAT is being asked.\n"
+                "- Use documents and history to determine WHAT the answer is.\n"
                 "- When both support the answer, synthesize naturally — do not repeat the same point twice.\n\n"
 
                 "## Strict Rules\n"
@@ -105,7 +105,6 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
                 "### Response Format:\n"
                 "- Classification: <Answerable / Needs More Information / Out of Scope>\n"
                 "- Priority: <High / Medium / Low>\n"
-                "- Source Used: <History / Documents / Both>\n"
                 "- Answer:\n"
                 "  <Your answer here>\n"
                 "  [If partial:]\n"
@@ -139,7 +138,7 @@ def create_chat_retrieval_pipeline(top_k: int = 3, retrieval_top_k: int = 30):
         OpenAIChatGenerator(
             api_key=Secret.from_env_var("OPENAI_API_KEY"),
             model="gpt-5.2",
-            generation_kwargs={"temperature": 0.0, "max_completion_tokens": 600},
+            generation_kwargs={"temperature": 0.0, "max_completion_tokens": 900},
         )
     )
 
